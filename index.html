@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار المطورين</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; }
+        body { background: linear-gradient(135deg, #0f0f1a, #1a1a40); color: #fff; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .container { width: 100%; max-width: 600px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 40px; backdrop-filter: blur(10px); text-align: center; }
+        h1 { color: #00d2ff; margin-bottom: 10px; }
+        .subtitle { color: #888; margin-bottom: 30px; }
+        
+        /* شاشة البداية والنتيجة */
+        .screen { display: none; }
+        .screen.active { display: block; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        button { padding: 15px 40px; background: #00d2ff; color: #0f0f1a; border: none; border-radius: 30px; font-weight: bold; font-size: 1.1rem; cursor: pointer; transition: 0.3s; margin-top: 20px; }
+        button:hover { background: #00a8cc; transform: scale(1.05); }
+
+        /* شاشة الأسئلة */
+        .question-num { color: #aaa; font-size: 0.9rem; margin-bottom: 10px; }
+        .question-text { font-size: 1.3rem; margin-bottom: 30px; line-height: 1.6; }
+        
+        .options { display: flex; flex-direction: column; gap: 15px; text-align: right; }
+        .option { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); padding: 15px 20px; border-radius: 10px; cursor: pointer; transition: 0.3s; font-size: 1.05rem; }
+        .option:hover { border-color: #00d2ff; background: rgba(0, 210, 255, 0.05); }
+        
+        /* تأثيرات الإجابة */
+        .option.correct { border-color: #2ecc71; background: rgba(46, 204, 113, 0.1); color: #2ecc71; }
+        .option.wrong { border-color: #ff4757; background: rgba(255, 71, 87, 0.1); color: #ff4757; }
+        .option.disabled { pointer-events: none; } /* يمنع الضغط المتكرر */
+
+        /* شاشة النتيجة */
+        .final-score { font-size: 4rem; font-weight: bold; color: #00d2ff; margin: 20px 0; }
+        .score-message { font-size: 1.3rem; color: #bbb; }
+    </style>
+</head>
+<body>
+    
+    <div class="container">
+        <!-- شاشة البداية -->
+        <div id="start-screen" class="screen active">
+            <h1>اختبار المطورين 🚀</h1>
+            <p class="subtitle">هل أنت مبرمج محترف؟ اختبر معلوماتك في 5 أسئلة سريعة!</p>
+            <button onclick="startQuiz()">ابدأ الاختبار</button>
+        </div>
+
+        <!-- شاشة الأسئلة -->
+        <div id="quiz-screen" class="screen">
+            <p class="question-num" id="q-num">السؤال 1 من 5</p>
+            <h2 class="question-text" id="q-text">السؤال هنا</h2>
+            <div class="options" id="options-container">
+                <!-- الخيارات هتتضاف بالجافاسكريبت -->
+            </div>
+        </div>
+
+        <!-- شاشة النتيجة -->
+        <div id="result-screen" class="screen">
+            <h1>انتهى الاختبار!</h1>
+            <div class="final-score" id="final-score">5/5</div>
+            <p class="score-message" id="score-message">أداء رائع!</p>
+            <button onclick="restartQuiz()">أعد الاختبار</button>
+        </div>
+    </div>
+
+    <script>
+        // قاعدة بيانات الأسئلة
+        const quizData = [
+            {
+                question: "ما هو اختصار لغة ترميز النص الفائق التي يُبنى بها المواقع؟",
+                options: ["JavaScript", "HTML", "Python", "CSS"],
+                correct: 1
+            },
+            {
+                question: "أي من التالي يُستخدم لإضافة تصميم وتنسيقات للصفحة؟",
+                options: ["Java", "HTML", "CSS", "C++"],
+                correct: 2
+            },
+            {
+                question: "ما معنى مصطلح Front-End؟",
+                options: ["قاعدة البيانات", "واجهة المستخدم والتصميم", "حماية السيرفر", "إدارة الشبكات"],
+                correct: 1
+            },
+            {
+                question: "ما هو الملف الرئيسي الذي يُكتب فيه كود JavaScript في مشروع ويب؟",
+                options: ["style.js", "index.js", "script.js", "app.js"],
+                correct: 2 // script.js هو الأكثر شيوعاً للمبتدئين
+            },
+            {
+                question: "ما هو اللون الناتج عن دمج الأحمر والأزرق في نظام RGB؟",
+                options: ["أخضر", "أصفر", "بنفسجي (Magenta)", "برتقالي"],
+                correct: 2
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const qNum = document.getElementById('q-num');
+        const qText = document.getElementById('q-text');
+        const optionsContainer = document.getElementById('options-container');
+        const finalScore = document.getElementById('final-score');
+        const scoreMessage = document.getElementById('score-message');
+
+        function startQuiz() {
+            startScreen.classList.remove('active');
+            quizScreen.classList.add('active');
+            currentQuestionIndex = 0;
+            score = 0;
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            // مسح الخيارات القديمة
+            optionsContainer.innerHTML = '';
+            
+            // جلب بيانات السؤال الحالي
+            const currentQ = quizData[currentQuestionIndex];
+            qNum.textContent = `السؤال ${currentQuestionIndex + 1} من ${quizData.length}`;
+            qText.textContent = currentQ.question;
+
+            // إنشاء أزرار الخيارات
+            currentQ.options.forEach((option, index) => {
+                const div = document.createElement('div');
+                div.classList.add('option');
+                div.textContent = option;
+                
+                // لما يضغط على الخيار
+                div.addEventListener('click', () => selectAnswer(index, div));
+                
+                optionsContainer.appendChild(div);
+            });
+        }
+
+        function selectAnswer(selectedIndex, selectedElement) {
+            const correctIndex = quizData[currentQuestionIndex].correct;
+            const allOptions = document.querySelectorAll('.option');
+
+            // منع الضغط على باقي الخيارات
+            allOptions.forEach(opt => opt.classList.add('disabled'));
+
+            // لو الإجابة صح
+            if (selectedIndex === correctIndex) {
+                selectedElement.classList.add('correct');
+                score++;
+            } 
+            // لو الإجابة غلط
+            else {
+                selectedElement.classList.add('wrong');
+                // اظهر الإجابة الصح باللون الأخضر
+                allOptions[correctIndex].classList.add('correct');
+            }
+
+            // روح للسؤال اللي جاي بعد ثانية
+            setTimeout(() => {
+                currentQuestionIndex++;
+                
+                // لو خلصت الأسئلة
+                if (currentQuestionIndex < quizData.length) {
+                    loadQuestion();
+                } else {
+                    showResult();
+                }
+            }, 1000); // انتظر ثانية عشان المستخدم يشوف اللون
+        }
+
+        function showResult() {
+            quizScreen.classList.remove('active');
+            resultScreen.classList.add('active');
+            
+            finalScore.textContent = `${score} / ${quizData.length}`;
+            
+            // رسالة حسب النتيجة
+            if(score === quizData.length) {
+                scoreMessage.textContent = "عبقري! إنت مبرمج محترف فعلاً 🤩";
+            } else if (score >= 3) {
+                scoreMessage.textContent = "ممتاز! معلوماتك قوية جداً 💪";
+            } else {
+                scoreMessage.textContent = "محتاج تذاكر شوية يا بيه 😅";
+            }
+        }
+
+        function restartQuiz() {
+            resultScreen.classList.remove('active');
+            startScreen.classList.add('active');
+        }
+    </script>
+</body>
+</html>
